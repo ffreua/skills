@@ -1,0 +1,634 @@
+<!--
+  TEMPLATE — Análise crítica interativa de artigos científicos
+  Fragmento autocontido, escopado em #lit-app (funciona inline em widgets de chat
+  ou dentro de <body> de um arquivo HTML). Não depende de bibliotecas externas.
+
+  Como usar (detalhes em references/interface.md):
+  1. Substitua todo texto entre ⟦ ⟧. Não deixe nenhum ⟦ ⟧ na versão final.
+  2. Preencha as 4 seções [data-passo] com componentes do catálogo (interface.md).
+  3. Preencha o JSON de fontes (data-lit-fontes-dados). Todo número exibido deve
+     citar uma fonte com <button type="button" class="lit-ref" data-fonte="F1"></button>.
+  4. NÃO altere o bloco <script> do motor (exceto para corrigir bugs).
+-->
+<div id="lit-app" lang="pt-BR">
+<style>
+#lit-app{
+  --fundo:#FAF9F6; --superficie:#FFFFFF; --superficie-2:#F3F1EC;
+  --tinta:#1F2328; --tinta-2:#474D55; --tinta-3:#6B7178; --borda:#E2DED6;
+  --primaria:#35B4A2; --primaria-forte:#1F7A6D; --primaria-suave:#E4F4F1;
+  --contraste:#D97757; --contraste-forte:#A64C2F; --contraste-suave:#FBEDE6;
+  --raio:10px;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color:var(--tinta); background:var(--fundo); line-height:1.55; font-size:15px;
+  padding:20px 16px 28px; border-radius:var(--raio); box-sizing:border-box; max-width:1040px; margin:0 auto;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  #lit-app:not([data-tema="claro"]){
+    --fundo:#16181B; --superficie:#1E2125; --superficie-2:#262A2F;
+    --tinta:#ECEDEE; --tinta-2:#C4C8CD; --tinta-3:#9AA0A7; --borda:#353A40;
+    --primaria:#35B4A2; --primaria-forte:#62D1C0; --primaria-suave:#173430;
+    --contraste:#D97757; --contraste-forte:#F2A285; --contraste-suave:#3A2620;
+    color-scheme: dark;
+  }
+}
+#lit-app *,#lit-app *::before,#lit-app *::after{box-sizing:border-box}
+#lit-app [hidden]{display:none !important}
+#lit-app h1,#lit-app h2,#lit-app h3,#lit-app h4{line-height:1.25;margin:0 0 .5em;color:var(--tinta)}
+#lit-app p{margin:0 0 .75em}
+#lit-app button{font:inherit;color:inherit;cursor:pointer}
+#lit-app button:focus-visible,#lit-app summary:focus-visible{outline:2px solid var(--primaria-forte);outline-offset:2px}
+#lit-app .lit-topo{margin-bottom:14px}
+#lit-app .lit-titulo{font-size:1.45rem;font-weight:700;letter-spacing:-.01em}
+#lit-app .lit-titulo span{font-weight:400;color:var(--tinta-3)}
+#lit-app .lit-subtitulo{color:var(--tinta-2);font-size:.95rem;margin:0}
+#lit-app .lit-container{position:relative;background:var(--superficie);border:1px solid var(--borda);border-radius:var(--raio);overflow:hidden;min-height:520px}
+/* Região A — mapa */
+#lit-app .lit-mapa{padding:16px 18px;border-bottom:1px solid var(--borda);background:var(--superficie-2)}
+#lit-app .lit-mapa-cab{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+#lit-app .lit-rotulo{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--tinta-3)}
+#lit-app .lit-indicador{font-size:.8rem;font-weight:700;color:var(--primaria-forte);background:var(--primaria-suave);padding:2px 10px;border-radius:999px;font-variant-numeric:tabular-nums}
+#lit-app .lit-pergunta{background:var(--superficie);border:1px solid var(--borda);border-left:4px solid var(--primaria);border-radius:8px;padding:10px 14px;margin-bottom:8px}
+#lit-app .lit-pergunta p{margin:0;font-weight:600}
+#lit-app .lit-rotulo-mini{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--tinta-3);font-weight:700;margin-bottom:2px}
+#lit-app .lit-legenda{font-size:.85rem;color:var(--tinta-2);margin:0 0 12px}
+#lit-app .lit-segmentos{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+#lit-app .lit-segmentos button{display:flex;align-items:center;gap:8px;text-align:left;background:var(--superficie);border:1px solid var(--borda);border-radius:8px;padding:8px 10px;font-size:.85rem;color:var(--tinta-2);min-height:44px}
+#lit-app .lit-segmentos .num{flex:none;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--borda);font-weight:700;font-size:.75rem}
+#lit-app .lit-segmentos button.feito .num{border-color:var(--primaria);color:var(--primaria-forte)}
+#lit-app .lit-segmentos button.ativo{border-color:var(--primaria);background:var(--primaria-suave);color:var(--tinta);font-weight:600}
+#lit-app .lit-segmentos button.ativo .num{background:var(--primaria);border-color:var(--primaria);color:#fff}
+@media (max-width:640px){
+  #lit-app .lit-segmentos{grid-template-columns:repeat(2,1fr)}
+  #lit-app .lit-titulo{font-size:1.2rem}
+}
+/* Região B — conteúdo */
+#lit-app .lit-conteudo{padding:20px 18px 8px;outline:none}
+#lit-app .lit-conteudo h2{font-size:1.25rem}
+#lit-app .lit-conteudo h3{font-size:1rem;margin-top:1.1em}
+#lit-app .lit-sub{color:var(--tinta-2);margin-top:-.3em}
+/* Região C — controles */
+#lit-app .lit-controles{display:flex;justify-content:space-between;gap:8px;padding:12px 18px 16px;border-top:1px solid var(--borda)}
+#lit-app .lit-btn{background:var(--superficie);border:1px solid var(--borda);border-radius:8px;padding:9px 16px;min-height:42px;font-weight:600}
+#lit-app .lit-btn:disabled{opacity:.4;cursor:not-allowed}
+#lit-app .lit-btn.primario{background:var(--primaria-forte);border-color:var(--primaria-forte);color:#fff}
+@media (prefers-color-scheme: dark){#lit-app:not([data-tema="claro"]) .lit-btn.primario{color:#0E1A18}}
+/* Painel de fontes */
+#lit-app .lit-painel{position:absolute;top:0;right:0;bottom:0;width:min(440px,100%);background:var(--superficie);border-left:1px solid var(--borda);box-shadow:-8px 0 24px rgba(0,0,0,.08);overflow:auto;padding:16px 18px;z-index:5}
+#lit-app .lit-painel-cab{display:flex;justify-content:space-between;align-items:center;gap:8px;position:sticky;top:-16px;background:var(--superficie);padding:4px 0 8px;margin-top:-4px}
+#lit-app .lit-painel-cab h3{margin:0;font-size:1rem}
+#lit-app .lit-fechar{background:none;border:1px solid var(--borda);border-radius:8px;width:36px;height:36px;font-size:1.2rem;line-height:1}
+#lit-app .lit-painel ol{list-style:none;padding:0;margin:8px 0 0}
+#lit-app .lit-painel li{border:1px solid var(--borda);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:.88rem;transition:background .2s}
+#lit-app .lit-painel li.destaque{border-color:var(--contraste);background:var(--contraste-suave)}
+#lit-app .lit-fonte-id{font-weight:700;margin-right:4px}
+#lit-app .lit-fonte-meta{color:var(--tinta-3);font-size:.82rem;margin-top:3px}
+#lit-app .lit-fonte-valor{font-variant-numeric:tabular-nums;font-weight:600}
+/* Etiquetas de proveniência e referências */
+#lit-app .lit-tag{display:inline-block;font-size:.68rem;font-weight:700;letter-spacing:.03em;padding:0 6px;border-radius:4px;vertical-align:.12em;border:1px solid transparent;line-height:1.5}
+#lit-app .lit-tag.P{background:var(--primaria-suave);color:var(--primaria-forte);border-color:var(--primaria)}
+#lit-app .lit-tag.C{background:var(--contraste-suave);color:var(--contraste-forte);border-color:var(--contraste)}
+#lit-app .lit-tag.I{background:var(--superficie-2);color:var(--tinta-2);border-color:var(--tinta-3)}
+#lit-app .lit-tag.ND{background:transparent;color:var(--tinta-3);border:1px dashed var(--tinta-3)}
+#lit-app .lit-ref{display:inline-block;background:none;border:1px solid var(--borda);border-radius:4px;padding:0 5px;font-size:.7rem;font-weight:700;color:var(--tinta-3);vertical-align:.12em;line-height:1.5}
+#lit-app .lit-ref:hover{border-color:var(--primaria);color:var(--primaria-forte)}
+#lit-app .lit-ref.quebrada{border-color:red;color:red}
+/* Componentes */
+#lit-app .lit-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:12px 0}
+#lit-app .lit-cartao{border:1px solid var(--borda);border-radius:var(--raio);padding:12px 14px;background:var(--superficie)}
+#lit-app .lit-cartao.realce{border-top:3px solid var(--primaria)}
+#lit-app .lit-cartao.realce-contraste{border-top:3px solid var(--contraste)}
+#lit-app .lit-cartao h4{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--tinta-3)}
+#lit-app .lit-numero{font-size:1.9rem;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1;margin:2px 0 4px}
+#lit-app .lit-numero small{font-size:.9rem;font-weight:500;color:var(--tinta-2);letter-spacing:0}
+#lit-app .lit-nota{font-size:.82rem;color:var(--tinta-3)}
+#lit-app .lit-didatica{border-left:3px solid var(--contraste);background:var(--contraste-suave);padding:10px 14px;border-radius:0 8px 8px 0;margin:16px 0 8px}
+#lit-app .lit-didatica strong{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--contraste-forte);margin-bottom:2px}
+#lit-app .lit-alerta{border:1px solid var(--contraste);border-radius:8px;padding:10px 14px;margin:10px 0;background:var(--superficie)}
+#lit-app .lit-alerta::before{content:"⚠ ";color:var(--contraste-forte);font-weight:700}
+#lit-app details.lit-avancado{border:1px solid var(--borda);border-radius:8px;margin:12px 0;background:var(--superficie-2)}
+#lit-app details.lit-avancado>summary{cursor:pointer;padding:9px 14px;font-weight:600;font-size:.9rem;color:var(--tinta-2)}
+#lit-app details.lit-avancado>summary::after{content:" · camada avançada";font-weight:400;color:var(--tinta-3);font-size:.8rem}
+#lit-app details.lit-avancado>div{padding:2px 14px 12px;font-size:.92rem}
+#lit-app .lit-tabela-wrap{overflow-x:auto;margin:10px 0}
+#lit-app table.lit-tabela{border-collapse:collapse;width:100%;font-size:.88rem;font-variant-numeric:tabular-nums}
+#lit-app table.lit-tabela th,#lit-app table.lit-tabela td{border-bottom:1px solid var(--borda);padding:6px 8px;text-align:left;vertical-align:top}
+#lit-app table.lit-tabela th{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--tinta-3)}
+#lit-app .lit-fluxo{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin:12px 0}
+#lit-app .lit-fluxo>div{flex:1 1 140px;border:1px solid var(--borda);border-radius:8px;padding:8px 10px;font-size:.85rem;background:var(--superficie)}
+#lit-app .lit-fluxo>div b{display:block;font-size:1.15rem;font-variant-numeric:tabular-nums}
+#lit-app .lit-fluxo>span{align-self:center;color:var(--tinta-3)}
+#lit-app .lit-seletor{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 14px}
+#lit-app .lit-seletor-rotulo{font-size:.8rem;color:var(--tinta-3);margin-right:4px}
+#lit-app .lit-seletor button{border:1px solid var(--borda);background:var(--superficie);border-radius:999px;padding:5px 12px;font-size:.84rem;min-height:34px}
+#lit-app .lit-seletor button[aria-pressed="true"]{background:var(--primaria-suave);border-color:var(--primaria);color:var(--tinta);font-weight:600}
+#lit-app .lit-blocos{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin:12px 0}
+#lit-app .lit-bloco{border:1px solid var(--borda);border-radius:var(--raio);padding:12px 14px}
+#lit-app .lit-bloco .letra{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:6px;background:var(--primaria-suave);color:var(--primaria-forte);font-weight:700;font-size:.8rem;margin-right:6px}
+#lit-app .lit-bloco h4{display:flex;align-items:center;font-size:.85rem;text-transform:uppercase;letter-spacing:.05em}
+#lit-app .lit-conclusao{border:2px solid var(--primaria);border-radius:var(--raio);padding:14px 16px;margin:16px 0 8px;background:var(--primaria-suave)}
+#lit-app .lit-conclusao h4{font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--primaria-forte)}
+#lit-app .lit-conclusao p{margin:0;font-size:1rem}
+/* Gráficos */
+#lit-app .lit-grafico{margin:12px 0}
+#lit-app .lit-grafico svg{display:block;width:100%;height:auto;overflow:visible}
+#lit-app .lit-grafico svg text{fill:var(--tinta);font-family:inherit}
+#lit-app .lit-grafico-fonte{font-size:.8rem;color:var(--tinta-3);margin-top:4px}
+#lit-app .lit-grafico details{font-size:.85rem;margin-top:4px}
+#lit-app .lit-grafico details summary{cursor:pointer;color:var(--tinta-3)}
+#lit-app .lit-erro{border:1px dashed red;color:red;padding:8px;border-radius:6px;font-size:.85rem}
+#lit-app table.lit-matriz{border-collapse:separate;border-spacing:4px;font-variant-numeric:tabular-nums;margin:0 auto}
+#lit-app table.lit-matriz caption{font-weight:600;margin-bottom:6px;text-align:left}
+#lit-app table.lit-matriz th{font-size:.78rem;color:var(--tinta-2);font-weight:600;padding:4px 8px}
+#lit-app table.lit-matriz td{text-align:center;padding:10px 14px;border-radius:8px;border:1px solid var(--borda);min-width:96px}
+#lit-app table.lit-matriz td.v{background:var(--primaria-suave);border-color:var(--primaria)}
+#lit-app table.lit-matriz td.f{background:var(--contraste-suave);border-color:var(--contraste)}
+#lit-app table.lit-matriz td.t{background:var(--superficie-2);color:var(--tinta-2)}
+#lit-app table.lit-matriz td b{display:block;font-size:1.35rem}
+#lit-app table.lit-matriz td span{font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;color:var(--tinta-3)}
+@media (max-width:520px){#lit-app table.lit-matriz td{min-width:64px;padding:8px 6px}#lit-app table.lit-matriz td b{font-size:1.1rem}}
+#lit-app .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+
+<header class="lit-topo">
+  <h1 class="lit-titulo">⟦Autor principal Ano⟧ <span>| Da evidência à interpretação</span></h1>
+  <p class="lit-subtitulo">⟦Delineamento identificado⟧ · ⟦Resultado central⟧ · ⟦Horizonte temporal ou contexto⟧</p>
+</header>
+
+<div class="lit-container">
+  <!-- REGIÃO A — MAPA PERSISTENTE -->
+  <section class="lit-mapa" aria-label="Mapa da evidência">
+    <div class="lit-mapa-cab">
+      <span class="lit-rotulo">Mapa da evidência · sempre visível</span>
+      <span class="lit-indicador" data-lit-indicador aria-live="polite">1 de 4</span>
+    </div>
+    <div class="lit-pergunta">
+      <span class="lit-rotulo-mini">Pergunta clínica</span>
+      <p>⟦Pergunta clínica central em linguagem simples⟧</p>
+    </div>
+    <p class="lit-legenda">⟦Delineamento⟧ · ⟦População ou estudos incluídos⟧ · ⟦Objetivo principal⟧</p>
+    <nav class="lit-segmentos" aria-label="Etapas da análise">
+      <button type="button" data-ir="1"><span class="num">1</span><span>Estrutura do estudo</span></button>
+      <button type="button" data-ir="2"><span class="num">2</span><span>Resultados observados</span></button>
+      <button type="button" data-ir="3"><span class="num">3</span><span>Efeito e incerteza</span></button>
+      <button type="button" data-ir="4"><span class="num">4</span><span>Interpretação clínica</span></button>
+    </nav>
+  </section>
+
+  <!-- REGIÃO B — CONTEÚDO PROGRESSIVO -->
+  <div class="lit-conteudo" data-lit-conteudo tabindex="-1">
+
+    <section data-passo="1" aria-labelledby="lit-h1">
+      <h2 id="lit-h1">O que foi investigado?</h2>
+      <!-- Pergunta em linguagem simples; delineamento e como os dados foram obtidos;
+           estrutura efetivamente presente (braços, expostos/não expostos, casos/controles,
+           teste índice/referência, estudos incluídos...); tamanhos amostrais e populações de análise
+           (use .lit-fluxo para elegíveis → incluídos → analisados). Camada avançada em details.lit-avancado. -->
+      ⟦conteúdo da etapa 1⟧
+      <aside class="lit-didatica"><strong>Pergunta didática</strong>Como o desenho deste estudo influencia aquilo que podemos concluir? ⟦resposta curta específica do estudo⟧</aside>
+    </section>
+
+    <section data-passo="2" aria-labelledby="lit-h2" hidden>
+      <h2 id="lit-h2">O que os pesquisadores observaram?</h2>
+      <!-- Dados observados antes das medidas comparativas; horizonte temporal e unidades;
+           distinguir observados vs modelados. Gráficos: barras, matriz 2x2, tabela por estudo... -->
+      ⟦conteúdo da etapa 2⟧
+      <aside class="lit-didatica"><strong>Pergunta didática</strong>O que os dados realmente mostram antes de interpretarmos seu significado? ⟦resposta curta⟧</aside>
+    </section>
+
+    <section data-passo="3" aria-labelledby="lit-h3" hidden>
+      <h2 id="lit-h3">Qual é a magnitude do resultado e sua incerteza?</h2>
+      <!-- Medida principal apropriada; estimativa, unidade/escala, IC, direção, referência de nulidade,
+           limiares clínicos (se definidos), tipo de análise, origem. Gráfico data-tipo="ic". -->
+      ⟦conteúdo da etapa 3⟧
+      <aside class="lit-didatica"><strong>Pergunta didática</strong>Qual é o tamanho do resultado e quais valores permanecem compatíveis com sua incerteza? ⟦resposta curta⟧</aside>
+    </section>
+
+    <section data-passo="4" aria-labelledby="lit-h4" hidden>
+      <h2 id="lit-h4">O que podemos concluir para a prática clínica?</h2>
+      <div class="lit-blocos">
+        <div class="lit-bloco"><h4><span class="letra">A</span>Achado principal</h4><p>⟦magnitude e direção⟧</p></div>
+        <div class="lit-bloco"><h4><span class="letra">B</span>Grau de incerteza</h4><p>⟦precisão e limitações da estimativa⟧</p></div>
+        <div class="lit-bloco"><h4><span class="letra">C</span>Validade e limitações</h4><p>⟦questões metodológicas que podem mudar a interpretação⟧</p></div>
+        <div class="lit-bloco"><h4><span class="letra">D</span>Relevância clínica</h4><p>⟦o que acrescenta e até onde orienta decisões⟧</p></div>
+      </div>
+      <div class="lit-conclusao">
+        <h4>Exemplo de conclusão sustentada pelos dados</h4>
+        <p>⟦2–3 frases: população, exposição/intervenção/teste, comparação, desfecho, horizonte, estimativa e IC, limitação central, implicação proporcional⟧</p>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- REGIÃO C — CONTROLES -->
+  <div class="lit-controles">
+    <button type="button" class="lit-btn" data-lit-voltar>← Voltar</button>
+    <button type="button" class="lit-btn" data-lit-fontes aria-expanded="false">Fontes</button>
+    <button type="button" class="lit-btn primario" data-lit-avancar>Avançar →</button>
+  </div>
+
+  <!-- PAINEL DE FONTES -->
+  <div class="lit-painel" data-lit-painel role="dialog" aria-label="Fontes e proveniência" hidden>
+    <div class="lit-painel-cab">
+      <h3 tabindex="-1">Fontes e proveniência</h3>
+      <button type="button" class="lit-fechar" data-lit-fechar aria-label="Fechar painel de fontes">×</button>
+    </div>
+    <p class="lit-nota">
+      <span class="lit-tag P">P</span> publicada ·
+      <span class="lit-tag C">C</span> calculada ·
+      <span class="lit-tag I">I</span> interpretada ·
+      <span class="lit-tag ND">ND</span> não disponível
+    </p>
+    <ol data-lit-lista-fontes></ol>
+  </div>
+</div>
+
+<!-- REGISTRO DE PROVENIÊNCIA — um objeto por dado relevante.
+     Campos: id (F1, F2…), rotulo, valor, origem (P|C|I|ND), local (página/tabela/figura/seção),
+     populacao, analise (tipo/modelo), nota (ressalvas; para C: fórmula e valores usados). -->
+<script type="application/json" data-lit-fontes-dados>
+[
+  {"id":"F1","rotulo":"⟦descrição do dado⟧","valor":"⟦valor⟧","origem":"P","local":"⟦Tabela X, p. Y⟧","populacao":"⟦população⟧","analise":"⟦tipo de análise⟧","nota":""}
+]
+</script>
+
+<!-- MOTOR — não editar -->
+<script>
+(function(){
+  "use strict";
+  var app = document.getElementById("lit-app");
+  if (!app) return;
+  var NS = "http://www.w3.org/2000/svg";
+  function $(s, r){ return (r || app).querySelector(s); }
+  function $$(s, r){ return Array.prototype.slice.call((r || app).querySelectorAll(s)); }
+  function h(tag, attrs, kids){
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function(k){ if (attrs[k] != null) n.setAttribute(k, attrs[k]); });
+    (kids || []).forEach(function(c){ if (c == null) return; n.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return n;
+  }
+  function s(tag, attrs, pai, texto){
+    var n = document.createElementNS(NS, tag);
+    Object.keys(attrs || {}).forEach(function(k){ n.setAttribute(k, attrs[k]); });
+    if (texto != null) n.textContent = texto;
+    if (pai) pai.appendChild(n);
+    return n;
+  }
+  function vazio(v){ return v === null || v === undefined || v === ""; }
+  function num(v){ if (typeof v === "number") return v; return parseFloat(String(v).replace(",", ".")); }
+  function txt(v){
+    if (vazio(v)) return "ND";
+    if (typeof v === "string") return /^-?[\d.,]+$/.test(v) ? v.replace(".", ",").replace(/^-/, "−") : v;
+    return v.toLocaleString("pt-BR", {maximumFractionDigits: 6}).replace(/^-/, "−");
+  }
+
+  /* ---------- Navegação ---------- */
+  var passos = $$("[data-passo]"), segs = $$("[data-ir]");
+  var bV = $("[data-lit-voltar]"), bA = $("[data-lit-avancar]"), bF = $("[data-lit-fontes]");
+  var painel = $("[data-lit-painel]"), ind = $("[data-lit-indicador]"), cont = $("[data-lit-conteudo]");
+  var estado = { passo: 1, sel: {} };
+  function irPara(n, focar){
+    estado.passo = n;
+    passos.forEach(function(p){ p.hidden = Number(p.getAttribute("data-passo")) !== n; });
+    segs.forEach(function(b){
+      var k = Number(b.getAttribute("data-ir"));
+      b.classList.toggle("ativo", k === n);
+      b.classList.toggle("feito", k < n);
+      if (k === n) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
+    });
+    ind.textContent = n + " de 4";
+    bV.disabled = n === 1;
+    bA.textContent = n === 4 ? "Recomeçar" : "Avançar →";
+    if (focar && cont.focus) { try { cont.focus({preventScroll: true}); } catch(e) { cont.focus(); } }
+  }
+  segs.forEach(function(b){ b.addEventListener("click", function(){ irPara(Number(b.getAttribute("data-ir")), true); }); });
+  bV.addEventListener("click", function(){ if (estado.passo > 1) irPara(estado.passo - 1, true); });
+  bA.addEventListener("click", function(){ irPara(estado.passo === 4 ? 1 : estado.passo + 1, true); });
+
+  /* ---------- Fontes ---------- */
+  var FONTES = [];
+  var ORIGENS = {P: "Publicada", C: "Calculada", I: "Interpretada", ND: "Não disponível"};
+  try { FONTES = JSON.parse($("[data-lit-fontes-dados]").textContent); }
+  catch(e){ console.error("Fontes: JSON inválido", e); }
+  var lista = $("[data-lit-lista-fontes]"), idsFontes = {};
+  FONTES.forEach(function(f){
+    idsFontes[f.id] = true;
+    var o = ORIGENS[f.origem] ? f.origem : "I";
+    var meta = [f.local, f.populacao, f.analise].filter(function(x){ return !vazio(x); }).join(" · ");
+    lista.appendChild(h("li", {id: "lit-fonte-" + f.id, "data-id": f.id}, [
+      h("span", {"class": "lit-tag " + o, title: ORIGENS[o]}, [o]), " ",
+      h("span", {"class": "lit-fonte-id"}, [f.id]), f.rotulo || "",
+      vazio(f.valor) ? null : h("div", {"class": "lit-fonte-valor"}, [String(f.valor)]),
+      meta ? h("div", {"class": "lit-fonte-meta"}, [meta]) : null,
+      vazio(f.nota) ? null : h("div", {"class": "lit-fonte-meta"}, [f.nota])
+    ]));
+  });
+  function abrirFontes(ids){
+    painel.hidden = false; bF.setAttribute("aria-expanded", "true");
+    $$("li", lista).forEach(function(li){ li.classList.toggle("destaque", (ids || []).indexOf(li.getAttribute("data-id")) >= 0); });
+    var alvo = ids && ids.length ? document.getElementById("lit-fonte-" + ids[0]) : null;
+    var cab = $(".lit-painel-cab h3"); if (cab) { try { cab.focus({preventScroll: true}); } catch(e){} }
+    painel.scrollTop = alvo ? Math.max(0, alvo.offsetTop - 70) : 0;
+    var topoP = painel.getBoundingClientRect ? painel.getBoundingClientRect().top : 0;
+    if (topoP < 0 && painel.scrollIntoView) painel.scrollIntoView({block: "start"});
+  }
+  function fecharFontes(){ painel.hidden = true; bF.setAttribute("aria-expanded", "false"); bF.focus(); }
+  bF.addEventListener("click", function(){ painel.hidden ? abrirFontes([]) : fecharFontes(); });
+  $("[data-lit-fechar]").addEventListener("click", fecharFontes);
+  app.addEventListener("keydown", function(e){ if (e.key === "Escape" && !painel.hidden) fecharFontes(); });
+  function ligarRefs(raiz){
+    $$(".lit-ref[data-fonte]", raiz).forEach(function(r){
+      if (r.getAttribute("data-ligado")) return;
+      r.setAttribute("data-ligado", "1");
+      var ids = r.getAttribute("data-fonte").split(",").map(function(x){ return x.trim(); }).filter(Boolean);
+      if (!r.textContent.trim()) r.textContent = ids.join(", ");
+      r.setAttribute("aria-label", "Ver fonte " + ids.join(", "));
+      var faltando = ids.filter(function(i){ return !idsFontes[i]; });
+      if (faltando.length){ r.classList.add("quebrada"); console.warn("Fonte inexistente:", faltando.join(", ")); }
+      r.addEventListener("click", function(){ abrirFontes(ids); });
+    });
+  }
+
+  /* ---------- Seletores (controles secundários) ---------- */
+  var seletores = $$(".lit-seletor[data-grupo]");
+  seletores.forEach(function(sel){
+    var g = sel.getAttribute("data-grupo");
+    sel.setAttribute("role", "group");
+    var bts = $$("button[data-valor]", sel);
+    if (!(g in estado.sel) && bts.length){
+      var p = bts.filter(function(b){ return b.hasAttribute("data-padrao"); })[0] || bts[0];
+      estado.sel[g] = p.getAttribute("data-valor");
+    }
+    bts.forEach(function(b){
+      b.type = "button";
+      b.addEventListener("click", function(){ estado.sel[g] = b.getAttribute("data-valor"); aplicarSelecoes(); });
+    });
+  });
+  function aplicarSelecoes(){
+    seletores.forEach(function(sel){
+      var g = sel.getAttribute("data-grupo");
+      $$("button[data-valor]", sel).forEach(function(b){ b.setAttribute("aria-pressed", String(b.getAttribute("data-valor") === estado.sel[g])); });
+    });
+    $$("[data-mostrar]").forEach(function(el){
+      var ok = el.getAttribute("data-mostrar").split(";").map(function(c){ return c.trim(); }).filter(Boolean).every(function(c){
+        var i = c.indexOf(":"), g = c.slice(0, i).trim(), vs = c.slice(i + 1).split("|").map(function(v){ return v.trim(); });
+        return vs.indexOf(estado.sel[g]) >= 0;
+      });
+      el.hidden = !ok;
+    });
+  }
+
+  /* ---------- Gráficos ---------- */
+  function erroGrafico(el, msg){ el.appendChild(h("div", {"class": "lit-erro"}, ["Gráfico não renderizado: " + msg])); }
+  function rodape(el, cfg, linhas, cabecalho){
+    if (cfg.fonte){
+      var r = h("button", {type: "button", "class": "lit-ref", "data-fonte": cfg.fonte});
+      el.appendChild(h("div", {"class": "lit-grafico-fonte"}, ["Fonte: ", r, cfg.notaFonte ? " · " + cfg.notaFonte : ""]));
+    }
+    if (linhas && linhas.length){
+      var tb = h("table", {"class": "lit-tabela"}, [
+        h("thead", null, [h("tr", null, cabecalho.map(function(c){ return h("th", null, [c]); }))]),
+        h("tbody", null, linhas.map(function(l){ return h("tr", null, l.map(function(c){ return h("td", null, [c]); })); }))
+      ]);
+      el.appendChild(h("details", null, [h("summary", null, ["Ver dados em tabela"]), h("div", {"class": "lit-tabela-wrap"}, [tb])]));
+    }
+  }
+  function quebrar(t, max){
+    var pal = String(t).split(/\s+/), l = [], at = "";
+    pal.forEach(function(p){ if ((at + " " + p).trim().length > max && at){ l.push(at); at = p; } else at = (at + " " + p).trim(); });
+    if (at) l.push(at);
+    if (l.length > 2){ l = [l[0], l.slice(1).join(" ")]; if (l[1].length > max) l[1] = l[1].slice(0, max - 1) + "…"; }
+    return l;
+  }
+  function ticksLineares(lo, hi, alvo){
+    var bruto = (hi - lo) / (alvo || 5), mag = Math.pow(10, Math.floor(Math.log10(bruto))), r = bruto / mag;
+    var passo = (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * mag, t = [], v = Math.ceil(lo / passo) * passo;
+    for (; v <= hi + passo * 1e-9; v += passo) t.push(Math.abs(v) < passo * 1e-9 ? 0 : +v.toPrecision(12));
+    return t;
+  }
+  function ticksLog(lo, hi){
+    var t = [], e;
+    for (e = Math.floor(lo) - 1; e <= Math.ceil(hi) + 1; e++) [1, 2, 5].forEach(function(m){ var v = m * Math.pow(10, e), L = Math.log10(v); if (L >= lo - 1e-9 && L <= hi + 1e-9) t.push(+v.toPrecision(12)); });
+    if (t.length > 8) t = t.filter(function(v){ var L = Math.log10(v); return Math.abs(L - Math.round(L)) < 1e-9 || Math.abs(Math.log10(v / 5) - Math.round(Math.log10(v / 5))) < 1e-9; });
+    if (t.length < 3){ var extra = []; for (e = Math.floor(lo) - 1; e <= Math.ceil(hi); e++) [1.5, 3, 4, 7].forEach(function(m){ var v = m * Math.pow(10, e), L = Math.log10(v); if (L >= lo && L <= hi) extra.push(+v.toPrecision(12)); }); t = t.concat(extra).sort(function(a, b){ return a - b; }); }
+    return t;
+  }
+
+  function largura(){ var w = app.clientWidth || (app.getBoundingClientRect ? app.getBoundingClientRect().width : 0); return w || 720; }
+  function compacto(){ return largura() < 600; }
+  /* Layout comum: no modo largo, rótulo à esquerda e valores à direita; no compacto (telas
+     estreitas), cada linha empilha rótulo, valor e barra, mantendo a fonte legível. */
+  function layout(c, itens, larguraValores, rowMin){
+    var cp = compacto(), W = cp ? 400 : 720, lw = cp ? 0 : (c.larguraRotulo || 220);
+    var L = {cp: cp, W: W, x0: cp ? 14 : lw + 12, x1: cp ? W - 14 : W - larguraValores - 12};
+    var maxC = cp ? Math.floor((W - 12) / 7.4) : Math.floor(lw / 6.9);
+    L.rot = itens.map(function(i){ return quebrar(i.rotulo || "", maxC); });
+    var multi = L.rot.some(function(r){ return r.length > 1; });
+    L.alt = L.rot.map(function(r){ return cp ? r.length * 15 + 40 : (multi ? 40 : rowMin); });
+    L.ini = []; var acc = 0; L.alt.forEach(function(a){ L.ini.push(acc); acc += a; }); L.total = acc;
+    L.yBarra = function(k, topo){ return topo + L.ini[k] + (cp ? L.alt[k] - 12 : L.alt[k] / 2); };
+    L.rotulo = function(svg, k, topo, negrito){
+      var r = L.rot[k], y0 = cp ? topo + L.ini[k] + 14 : topo + L.ini[k] + L.alt[k] / 2 - (r.length - 1) * 7 + 4;
+      var t = s("text", {x: 4, y: y0, "font-size": cp ? 13 : 12.5, "font-weight": negrito ? 700 : 400}, svg);
+      r.forEach(function(linha, j){ s("tspan", {x: 4, dy: j ? (cp ? 15 : 14) : 0}, t, linha); });
+    };
+    L.valor = function(svg, k, topo, texto){
+      if (cp) s("text", {x: 4, y: topo + L.ini[k] + L.rot[k].length * 15 + 13, "font-size": 12, style: "fill:var(--tinta-2);font-variant-numeric:tabular-nums"}, svg, texto);
+      else s("text", {x: L.x1 + 12, y: L.yBarra(k, topo) + 4, "font-size": 12, style: "font-variant-numeric:tabular-nums"}, svg, texto);
+    };
+    return L;
+  }
+
+  /* Estimativas com intervalo (ponto + IC; forest plot; estimativa combinada; intervalo de predição) */
+  function graficoIC(el, c){
+    var itens = c.itens || [], log = c.escala === "log";
+    if (!itens.length) throw new Error("sem itens");
+    var T = function(v){ return log ? Math.log10(v) : v; }, vals = [];
+    itens.forEach(function(i){ ["est", "li", "ls"].forEach(function(k){ if (!vazio(i[k])) vals.push(num(i[k])); }); if (i.ip) i.ip.forEach(function(v){ if (!vazio(v)) vals.push(num(v)); }); });
+    if (!vazio(c.referencia)) vals.push(num(c.referencia));
+    (c.limiares || []).forEach(function(l){ vals.push(num(l.valor)); });
+    if (vals.some(isNaN)) throw new Error("valor não numérico");
+    if (log && vals.some(function(v){ return v <= 0; })) throw new Error("escala log exige valores > 0");
+    var lo, hi;
+    if (c.dominio){ lo = T(num(c.dominio[0])); hi = T(num(c.dominio[1])); }
+    else { lo = Math.min.apply(null, vals.map(T)); hi = Math.max.apply(null, vals.map(T)); if (lo === hi){ lo -= .5; hi += .5; } var pad = (hi - lo) * .08; lo -= pad; hi += pad; }
+    var L = layout(c, itens, 180, 30), W = L.W, x0 = L.x0, x1 = L.x1;
+    var nLim = (c.limiares || []).length, topo = (c.titulo ? 52 : 30) + Math.max(0, nLim - 1) * 11, eixoY = topo + L.total + 6;
+    var temDir = c.rotuloEsquerda || c.rotuloDireita, H = eixoY + (temDir ? 72 : 40);
+    var X = function(v){ return x0 + (T(v) - lo) / (hi - lo) * (x1 - x0); };
+    var Xc = function(v){ return Math.max(x0, Math.min(x1, X(v))); };
+    var svg = s("svg", {viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": c.titulo || "Estimativas com intervalos"});
+    if (c.titulo) s("text", {x: 0, y: 18, "font-size": 14, "font-weight": 700}, svg, c.titulo);
+    if (!L.cp) s("text", {x: x1 + 12, y: topo - 10, "font-size": 11, style: "fill:var(--tinta-3)"}, svg, c.rotuloValores || "Estimativa (IC 95%)");
+    itens.forEach(function(i, k){ if (k % 2) s("rect", {x: 0, y: topo + L.ini[k], width: W, height: L.alt[k], style: "fill:var(--superficie-2)"}, svg); });
+    var refOk = !vazio(c.referencia) && T(num(c.referencia)) >= lo && T(num(c.referencia)) <= hi;
+    if (refOk){
+      var r = num(c.referencia), anc = X(r) > x1 - 70 ? "end" : X(r) < x0 + 70 ? "start" : "middle";
+      s("line", {x1: X(r), x2: X(r), y1: topo - 4, y2: eixoY, "stroke-dasharray": "4 3", style: "stroke:var(--tinta-3)", "stroke-width": 1.2}, svg);
+      s("text", {x: X(r), y: topo - 10, "text-anchor": anc, "font-size": 11, style: "fill:var(--tinta-3)"}, svg, c.rotuloReferencia || ("sem efeito (" + txt(c.referencia) + ")"));
+    }
+    (c.limiares || []).forEach(function(l, k){
+      var v = num(l.valor); if (T(v) < lo || T(v) > hi) return;
+      var anc = X(v) > x1 - 50 ? "end" : X(v) < x0 + 50 ? "start" : "middle";
+      s("line", {x1: X(v), x2: X(v), y1: topo - 4, y2: eixoY, "stroke-dasharray": "2 3", style: "stroke:var(--contraste)", "stroke-width": 1.4}, svg);
+      s("text", {x: X(v), y: topo - 24 - k * 11, "text-anchor": anc, "font-size": 10.5, style: "fill:var(--contraste-forte)"}, svg, l.rotulo || txt(l.valor));
+    });
+    var pesos = itens.map(function(i){ return vazio(i.peso) ? 0 : num(i.peso); }), pMax = Math.max.apply(null, pesos.concat([0]));
+    var linhasTab = [];
+    itens.forEach(function(i, k){
+      var y = L.yBarra(k, topo), est = num(i.est), temIC = !vazio(i.li) && !vazio(i.ls);
+      L.rotulo(svg, k, topo, i.tipo === "combinado");
+      if (i.ip && !vazio(i.ip[0]) && !vazio(i.ip[1])){
+        var a = Xc(num(i.ip[0])), b = Xc(num(i.ip[1]));
+        s("line", {x1: a, x2: b, y1: y + 9, y2: y + 9, style: "stroke:var(--contraste)", "stroke-width": 1.4, "stroke-dasharray": "5 3"}, svg);
+        s("line", {x1: a, x2: a, y1: y + 5, y2: y + 13, style: "stroke:var(--contraste)", "stroke-width": 1.4}, svg);
+        s("line", {x1: b, x2: b, y1: y + 5, y2: y + 13, style: "stroke:var(--contraste)", "stroke-width": 1.4}, svg);
+      }
+      if (temIC){
+        var li = num(i.li), ls = num(i.ls), xa = Xc(li), xb = Xc(ls);
+        if (i.tipo !== "combinado") s("line", {x1: xa, x2: xb, y1: y, y2: y, style: "stroke:var(--tinta-2)", "stroke-width": 1.6}, svg);
+        if (X(li) < x0) s("path", {d: "M" + x0 + " " + y + " l6 -4 l0 8 z", style: "fill:var(--tinta-2)"}, svg);
+        if (X(ls) > x1) s("path", {d: "M" + x1 + " " + y + " l-6 -4 l0 8 z", style: "fill:var(--tinta-2)"}, svg);
+      }
+      if (!isNaN(est) && T(est) >= lo && T(est) <= hi){
+        if (i.tipo === "combinado" && temIC){
+          s("polygon", {points: [Xc(num(i.li)) + "," + y, X(est) + "," + (y - 7), Xc(num(i.ls)) + "," + y, X(est) + "," + (y + 7)].join(" "), style: "fill:var(--primaria);stroke:var(--primaria-forte)"}, svg);
+        } else {
+          var tam = pMax > 0 && pesos[k] > 0 ? 4 + 9 * Math.sqrt(pesos[k] / pMax) : 9;
+          s("rect", {x: X(est) - tam / 2, y: y - tam / 2, width: tam, height: tam, style: "fill:" + (i.destaque ? "var(--contraste)" : "var(--primaria-forte)")}, svg);
+        }
+      }
+      var v = i.texto || (txt(i.est) + (temIC ? " (" + txt(i.li) + " a " + txt(i.ls) + ")" : " (IC não relatado)"));
+      if (i.origem && i.origem !== "P") v += " [" + i.origem + "]";
+      if (!vazio(i.peso)) v += " · peso " + txt(i.peso) + "%";
+      L.valor(svg, k, topo, v);
+      linhasTab.push([i.rotulo || "", txt(i.est), temIC ? txt(i.li) + " a " + txt(i.ls) : "ND", vazio(i.peso) ? "—" : txt(i.peso) + "%", i.origem || "P"]);
+    });
+    s("line", {x1: x0, x2: x1, y1: eixoY, y2: eixoY, style: "stroke:var(--tinta-3)"}, svg);
+    var tks = log ? ticksLog(lo, hi) : ticksLineares(lo, hi, L.cp ? 4 : 5);
+    tks.forEach(function(tv){
+      var x = X(tv); if (x < x0 - .5 || x > x1 + .5) return;
+      s("line", {x1: x, x2: x, y1: eixoY, y2: eixoY + 4, style: "stroke:var(--tinta-3)"}, svg);
+      s("text", {x: x, y: eixoY + 16, "text-anchor": "middle", "font-size": 11, style: "fill:var(--tinta-2)"}, svg, txt(tv));
+    });
+    if (c.unidade) s("text", {x: (x0 + x1) / 2, y: eixoY + 31, "text-anchor": "middle", "font-size": 11, style: "fill:var(--tinta-3)"}, svg, c.unidade + (log ? " (escala log)" : ""));
+    var xr = refOk ? X(num(c.referencia)) : (x0 + x1) / 2;
+    if (L.cp){
+      if (c.rotuloEsquerda) s("text", {x: x0, y: eixoY + 48, "font-size": 11, style: "fill:var(--tinta-2)"}, svg, "← " + c.rotuloEsquerda);
+      if (c.rotuloDireita) s("text", {x: x1, y: eixoY + 63, "text-anchor": "end", "font-size": 11, style: "fill:var(--tinta-2)"}, svg, c.rotuloDireita + " →");
+    } else {
+      if (c.rotuloEsquerda) s("text", {x: xr - 6, y: eixoY + 48, "text-anchor": "end", "font-size": 11, style: "fill:var(--tinta-2)"}, svg, "← " + c.rotuloEsquerda);
+      if (c.rotuloDireita) s("text", {x: xr + 6, y: eixoY + 63, "font-size": 11, style: "fill:var(--tinta-2)"}, svg, c.rotuloDireita + " →");
+    }
+    el.appendChild(svg);
+    rodape(el, c, linhasTab, ["Item", "Estimativa", "Intervalo", "Peso", "Origem"]);
+  }
+
+  /* Barras horizontais (proporções, frequências, valores ≥ 0 por grupo) */
+  function graficoBarras(el, c){
+    var itens = c.itens || []; if (!itens.length) throw new Error("sem itens");
+    var vals = []; itens.forEach(function(i){ vals.push(num(i.valor)); if (!vazio(i.ls)) vals.push(num(i.ls)); });
+    if (vals.some(isNaN)) throw new Error("valor não numérico");
+    if (vals.some(function(v){ return v < 0; })) throw new Error("barras exigem valores ≥ 0; use data-tipo=ic para diferenças");
+    var vmax = Math.max.apply(null, vals) || 1, max = vazio(c.max) ? null : num(c.max);
+    if (max === null){ var t0 = ticksLineares(0, vmax, 5), st = t0.length > 1 ? t0[1] - t0[0] : vmax; max = t0[t0.length - 1] < vmax ? t0[t0.length - 1] + st : t0[t0.length - 1]; }
+    var L = layout(c, itens, 170, 32), W = L.W, x0 = L.x0, x1 = L.x1;
+    var topo = c.titulo ? 34 : 8, eixoY = topo + L.total + 4, H = eixoY + (c.unidade ? 36 : 22);
+    var X = function(v){ return x0 + Math.min(v, max) / max * (x1 - x0); };
+    var svg = s("svg", {viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": c.titulo || "Gráfico de barras"});
+    if (c.titulo) s("text", {x: 0, y: 18, "font-size": 14, "font-weight": 700}, svg, c.titulo);
+    var cores = {primaria: "var(--primaria)", contraste: "var(--contraste)", neutro: "var(--tinta-3)"}, linhas = [];
+    itens.forEach(function(i, k){
+      var y = L.yBarra(k, topo), v = num(i.valor);
+      L.rotulo(svg, k, topo, false);
+      s("rect", {x: x0, y: y - 8, width: x1 - x0, height: 16, rx: 3, style: "fill:var(--superficie-2)"}, svg);
+      s("rect", {x: x0, y: y - 8, width: Math.max(0, X(v) - x0), height: 16, rx: 3, style: "fill:" + (cores[i.cor] || cores.primaria)}, svg);
+      if (!vazio(i.li) && !vazio(i.ls)){
+        var a = X(num(i.li)), b = X(num(i.ls));
+        s("line", {x1: a, x2: b, y1: y, y2: y, style: "stroke:var(--tinta)", "stroke-width": 1.5}, svg);
+        s("line", {x1: a, x2: a, y1: y - 5, y2: y + 5, style: "stroke:var(--tinta)", "stroke-width": 1.5}, svg);
+        s("line", {x1: b, x2: b, y1: y - 5, y2: y + 5, style: "stroke:var(--tinta)", "stroke-width": 1.5}, svg);
+      }
+      var tv = i.texto || (txt(i.valor) + (c.sufixo || "") + (vazio(i.n) ? "" : " (" + i.n + ")"));
+      if (i.origem && i.origem !== "P") tv += " [" + i.origem + "]";
+      L.valor(svg, k, topo, tv);
+      linhas.push([i.rotulo || "", txt(i.valor) + (c.sufixo || ""), vazio(i.li) ? "—" : txt(i.li) + " a " + txt(i.ls), vazio(i.n) ? "—" : String(i.n), i.origem || "P"]);
+    });
+    s("line", {x1: x0, x2: x1, y1: eixoY, y2: eixoY, style: "stroke:var(--tinta-3)"}, svg);
+    ticksLineares(0, max, L.cp ? 4 : 5).forEach(function(tv){ var x = X(tv); s("text", {x: x, y: eixoY + 14, "text-anchor": "middle", "font-size": 11, style: "fill:var(--tinta-2)"}, svg, txt(tv)); });
+    if (c.unidade) s("text", {x: (x0 + x1) / 2, y: eixoY + 30, "text-anchor": "middle", "font-size": 11, style: "fill:var(--tinta-3)"}, svg, c.unidade);
+    el.appendChild(svg);
+    rodape(el, c, linhas, ["Grupo", "Valor", "Intervalo", "n", "Origem"]);
+  }
+
+  /* Matriz diagnóstica 2 × 2 */
+  function matriz2x2(el, c){
+    var cel = function(v, sig, cls){ return h("td", {"class": cls}, [h("span", null, [sig]), h("b", null, [vazio(v) ? "ND" : txt(v)])]); };
+    var soma = function(a, b){ return vazio(a) || vazio(b) ? "—" : txt(num(a) + num(b)); };
+    var tot = [c.vp, c.fp, c.fn, c.vn].some(vazio) ? "—" : txt(num(c.vp) + num(c.fp) + num(c.fn) + num(c.vn));
+    var tdT = function(v){ return h("td", {"class": "t"}, [h("b", null, [v])]); };
+    var tab = h("table", {"class": "lit-matriz"}, [
+      c.titulo ? h("caption", null, [c.titulo]) : null,
+      h("thead", null, [
+        h("tr", null, [h("th"), h("th", {colspan: "2", scope: "colgroup"}, [c.rotuloReferencia || "Padrão de referência"]), h("th", {rowspan: "2", scope: "col"}, ["Total"])]),
+        h("tr", null, [h("th"), h("th", {scope: "col"}, [c.rotuloPresente || "Condição presente"]), h("th", {scope: "col"}, [c.rotuloAusente || "Condição ausente"])])
+      ]),
+      h("tbody", null, [
+        h("tr", null, [h("th", {scope: "row"}, [(c.rotuloTeste || "Teste índice") + " positivo"]), cel(c.vp, "Verdadeiro positivo", "v"), cel(c.fp, "Falso positivo", "f"), tdT(soma(c.vp, c.fp))]),
+        h("tr", null, [h("th", {scope: "row"}, [(c.rotuloTeste || "Teste índice") + " negativo"]), cel(c.fn, "Falso negativo", "f"), cel(c.vn, "Verdadeiro negativo", "v"), tdT(soma(c.fn, c.vn))]),
+        h("tr", null, [h("th", {scope: "row"}, ["Total"]), tdT(soma(c.vp, c.fn)), tdT(soma(c.fp, c.vn)), tdT(tot)])
+      ])
+    ]);
+    el.appendChild(h("div", {"class": "lit-tabela-wrap"}, [tab]));
+    el.appendChild(h("p", {"class": "lit-nota"}, ["Totais marginais: ", h("span", {"class": "lit-tag C"}, ["C"]), " soma das células publicadas." + (c.nota ? " " + c.nota : "")]));
+    rodape(el, c);
+  }
+
+  /* Frequências naturais (matriz de ícones) */
+  function frequencias(el, c){
+    var total = num(c.total || 100), porLinha = num(c.porLinha || 10), grupos = c.grupos || [];
+    var soma = grupos.reduce(function(a, g){ return a + num(g.n); }, 0);
+    if (soma > total) throw new Error("soma dos grupos maior que o total");
+    var cores = ["var(--primaria)", "var(--contraste)", "var(--tinta-2)"], formas = ["circulo", "quadrado", "losango"];
+    var seq = []; grupos.forEach(function(g, k){ for (var i = 0; i < num(g.n); i++) seq.push(k); });
+    while (seq.length < total) seq.push(-1);
+    var p = 22, linhas = Math.ceil(total / porLinha), topo = c.titulo ? 30 : 4, W = porLinha * p + 4, H = topo + linhas * p + 4;
+    var svg = s("svg", {viewBox: "0 0 " + Math.max(W, 260) + " " + H, role: "img", "aria-label": (c.titulo || "Frequências naturais") + ": " + grupos.map(function(g){ return g.n + " " + g.rotulo; }).join("; ") + " de " + total, style: "max-width:" + Math.max(W, 260) * 1.3 + "px"});
+    if (c.titulo) s("text", {x: 0, y: 18, "font-size": 13, "font-weight": 700}, svg, c.titulo);
+    seq.forEach(function(k, i){
+      var cx = (i % porLinha) * p + 11, cy = topo + Math.floor(i / porLinha) * p + 11;
+      if (k < 0){ s("circle", {cx: cx, cy: cy, r: 7, style: "fill:none;stroke:var(--borda)", "stroke-width": 1.5}, svg); return; }
+      var cor = cores[k % 3], f = formas[k % 3];
+      if (f === "circulo") s("circle", {cx: cx, cy: cy, r: 8, style: "fill:" + cor}, svg);
+      else if (f === "quadrado") s("rect", {x: cx - 7, y: cy - 7, width: 14, height: 14, rx: 2, style: "fill:" + cor}, svg);
+      else s("polygon", {points: [cx + "," + (cy - 8), (cx + 8) + "," + cy, cx + "," + (cy + 8), (cx - 8) + "," + cy].join(" "), style: "fill:" + cor}, svg);
+    });
+    el.appendChild(svg);
+    var leg = grupos.map(function(g, k){ return h("li", null, [h("span", {style: "color:" + cores[k % 3], "aria-hidden": "true"}, [["●", "■", "◆"][k % 3]]), " " + txt(g.n) + " de " + txt(total) + " — " + g.rotulo]); });
+    leg.push(h("li", null, ["○ " + txt(total - soma) + " de " + txt(total) + " — " + (c.rotuloRestante || "demais")]));
+    el.appendChild(h("ul", {"class": "lit-nota", style: "list-style:none;padding:0;margin:6px 0 0"}, leg));
+    if (c.nota) el.appendChild(h("p", {"class": "lit-nota"}, [c.nota]));
+    rodape(el, c);
+  }
+
+  var GRAFICOS = {ic: graficoIC, barras: graficoBarras, matriz2x2: matriz2x2, frequencias: frequencias};
+  function desenharGraficos(){
+    $$(".lit-grafico[data-tipo]").forEach(function(el){
+      Array.prototype.slice.call(el.children).forEach(function(ch){ if (ch.tagName !== "SCRIPT") el.removeChild(ch); });
+      var sc = $('script[type="application/json"]', el), cfg;
+      try { cfg = JSON.parse(sc ? sc.textContent : "{}"); } catch(e){ return erroGrafico(el, "JSON inválido (" + e.message + ")"); }
+      var fn = GRAFICOS[el.getAttribute("data-tipo")];
+      if (!fn) return erroGrafico(el, "tipo desconhecido: " + el.getAttribute("data-tipo"));
+      try { fn(el, cfg); } catch(e){ erroGrafico(el, e.message); }
+    });
+    ligarRefs(app);
+  }
+  desenharGraficos();
+  var modo = compacto(), tm;
+  window.addEventListener("resize", function(){ clearTimeout(tm); tm = setTimeout(function(){ if (compacto() !== modo){ modo = compacto(); desenharGraficos(); } }, 150); });
+
+  aplicarSelecoes();
+  irPara(1, false);
+})();
+</script>
+</div>
