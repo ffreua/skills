@@ -7,6 +7,7 @@ Coleção de skills para agentes de IA (Claude Code, Cursor, Codex, OpenCode e o
 | Skill | O que faz |
 |---|---|
 | [`analise-de-artigos-cientificos`](skills/analise-de-artigos-cientificos) | Interpretação crítica e interativa de artigos científicos da saúde: identifica o delineamento, extrai resultados com rastreabilidade, avalia magnitude, incerteza, vieses e relevância clínica, e entrega uma interface interativa em 4 etapas. |
+| [`hpo-neurogenetica`](skills/hpo-neurogenetica) | Investigação neurogenética em seis etapas, com fenotipagem HPO verificável, entrevista adaptativa e planejamento molecular para revisão médica. |
 
 ## Instalação
 
@@ -55,10 +56,19 @@ Uso: basta pedir naturalmente, anexando o artigo — "analisa criticamente esse 
 
 A skill apoia a leitura crítica da literatura e não substitui o julgamento clínico, diretrizes ou avaliações formais de risco de viés e certeza da evidência.
 
+## hpo-neurogenetica
+
+```bash
+npx skills add ffreua/skills --skill hpo-neurogenetica
+```
+
+No agente, solicite uma investigação neurogenética e apresente um caso sintético ou desidentificado. A disponibilidade de controles visuais, fontes online e exportação depende do agente.
+
 ## Estrutura do repositório
 
 ```
 skills/
+├── hpo-neurogenetica/
 └── analise-de-artigos-cientificos/
     ├── SKILL.md
     ├── references/

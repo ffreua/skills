@@ -1,0 +1,4 @@
+interface:
+  display_name: "HPO Neurogenética"
+  short_description: "Fenotipagem HPO e investigação neurogenética guiada"
+  default_prompt: "Use $hpo-neurogenetica para iniciar uma investigação a partir de um caso desidentificado."
